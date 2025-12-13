@@ -103,7 +103,16 @@ const FeaturePremiumChart = ({ data, width = 2000, height = 500 }) => {
         .attr('class', 'feature-bar')
         .attr('transform', `translate(0, ${yScale(feature.name)})`);
 
-      // Base price bar (gray)
+      // Premium bar (colored) - full width
+      barGroup.append('rect')
+        .attr('x', 0)
+        .attr('y', 0)
+        .attr('width', xScale(feature.withFeaturePrice))
+        .attr('height', yScale.bandwidth())
+        .attr('fill', feature.color)
+        .attr('opacity', 0.8);
+
+      // Base price bar (gray) - overlaid on top
       barGroup.append('rect')
         .attr('x', 0)
         .attr('y', 0)
@@ -112,15 +121,6 @@ const FeaturePremiumChart = ({ data, width = 2000, height = 500 }) => {
         .attr('fill', '#e0e0e0')
         .attr('stroke', '#ccc')
         .attr('stroke-width', 1);
-
-      // Premium bar (colored)
-      barGroup.append('rect')
-        .attr('x', xScale(feature.basePrice))
-        .attr('y', 0)
-        .attr('width', xScale(feature.withFeaturePrice) - xScale(feature.basePrice))
-        .attr('height', yScale.bandwidth())
-        .attr('fill', feature.color)
-        .attr('opacity', 0.8);
 
       // Premium value label
       barGroup.append('text')
