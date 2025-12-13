@@ -140,20 +140,23 @@ button.active {
 }
 
 .charts-container {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(600px, 1fr));
   gap: 30px;
   justify-content: center;
   margin-bottom: 30px;
+  padding: 0 20px;
 }
 
 .chart-wrapper {
   background: rgba(255, 255, 255, 0.95);
   border-radius: 15px;
-  padding: 25px;
+  padding: 20px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
   backdrop-filter: blur(10px);
   transition: transform 0.3s ease;
+  overflow: hidden;
+  max-width: 100%;
 }
 
 .chart-wrapper:hover {
@@ -295,6 +298,13 @@ select:focus {
 }
 
 /* Responsive enhancements */
+@media (max-width: 1200px) {
+  .charts-container {
+    grid-template-columns: 1fr;
+    padding: 0 10px;
+  }
+}
+
 @media (max-width: 768px) {
   .filter-controls {
     flex-direction: column;
@@ -307,11 +317,12 @@ select:focus {
   }
   
   .charts-container {
-    flex-direction: column;
+    grid-template-columns: 1fr;
+    gap: 20px;
   }
   
   .chart-wrapper {
-    width: 100%;
+    padding: 15px;
   }
   
   .insights-grid {

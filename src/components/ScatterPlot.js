@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
+import { getColor } from '../constants/colors';
 
 const ScatterPlot = ({ data, width = 600, height = 400 }) => {
   const svgRef = useRef();
@@ -42,8 +43,21 @@ const ScatterPlot = ({ data, width = 600, height = 400 }) => {
       }
     };
 
-    const colorScale = d3.scaleOrdinal(d3.schemeCategory10)
-      .domain([...new Set(data.map(d => getColorValue(d, colorBy)))]);
+    const getColorForScatter = (value, colorBy) => {
+      switch(colorBy) {
+        case 'bedrooms': return getColor('bedrooms', value);
+        case 'bathrooms': return getColor('bathrooms', value);
+        case 'stories': return getColor('stories', value);
+        case 'furnishingstatus': return getColor('furnishingStatus', value);
+        case 'airconditioning': return getColor('airConditioning', value);
+        case 'parking': return getColor('parking', value);
+        default: return '#95A5A6';
+      }
+    };
+
+    const colorScale = d3.scaleOrdinal()
+      .domain([...new Set(data.map(d => getColorValue(d, colorBy)))])
+      .range([...new Set(data.map(d => getColorValue(d, colorBy)))].map(value => getColorForScatter(value, colorBy)));
 
     // Create zoomable container for data points
     const zoomContainer = svg.append('g')
@@ -164,7 +178,7 @@ const ScatterPlot = ({ data, width = 600, height = 400 }) => {
       .text('Price (Millions)');
 
     fixedContainer.append('text')
-      .attr('transform', `translate(${innerWidth / 2}, ${innerHeight + margin.bottom})`)
+      .attr('transform', `translate(${innerWidth / 2}, ${innerHeight + margin.bottom - 5})`)
       .style('text-anchor', 'middle')
       .text('Area (sq ft)');
 

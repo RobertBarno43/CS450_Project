@@ -1,14 +1,15 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
+import { getColor } from '../constants/colors';
 
-const DonutChart = ({ data, width = 800, height = 750 }) => {
+const DonutChart = ({ data, width = 1125, height = 1063 }) => {
   const svgRef = useRef();  const zoomRef = useRef();  const [analysisType, setAnalysisType] = useState('furnishingstatus');
 
   useEffect(() => {
     const svg = d3.select(svgRef.current);
     svg.selectAll("*").remove();
 
-    const radius = Math.min(width, height) / 2 - 180;
+    const radius = Math.min(width, height) / 2 - 120;
     const innerRadius = radius * 0.4;
 
 
@@ -51,11 +52,29 @@ const DonutChart = ({ data, width = 800, height = 750 }) => {
     };
 
     const counts = processDataByType(analysisType);
-    const chartData = Array.from(counts, ([status, count]) => ({ status, count }));
+    let chartData = Array.from(counts, ([status, count]) => ({ status, count }));
+    
+    // Order bedroom categories: 2, 1, 3, 6, 4, 5
+    if (analysisType === 'bedrooms') {
+      const bedroomOrder = ['2 Bedrooms', '1 Bedroom', '3 Bedrooms', '6 Bedrooms', '4 Bedrooms', '5 Bedrooms'];
+      chartData = chartData.sort((a, b) => {
+        const aIndex = bedroomOrder.indexOf(a.status);
+        const bIndex = bedroomOrder.indexOf(b.status);
+        return (aIndex === -1 ? 999 : aIndex) - (bIndex === -1 ? 999 : bIndex);
+      });
+    }
+
+    const getColorForCategory = (status, type) => {
+      if (type === 'furnishingstatus') return getColor('furnishingStatus', status);
+      if (type === 'bedrooms') return getColor('bedrooms', parseInt(status.split(' ')[0]));
+      if (type === 'stories') return getColor('stories', parseInt(status.split(' ')[0]));
+      if (type === 'location') return getColor('location', status);
+      return '#95A5A6';
+    };
 
     const colorScale = d3.scaleOrdinal()
       .domain(chartData.map(d => d.status))
-      .range(['#3498DB', '#E74C3C', '#2ECC71', '#F39C12', '#9B59B6', '#1ABC9C', '#E67E22']);
+      .range(chartData.map(d => getColorForCategory(d.status, analysisType)));
 
     const pie = d3.pie()
       .value(d => d.count)
@@ -84,8 +103,8 @@ const DonutChart = ({ data, width = 800, height = 750 }) => {
     arcs.append('path')
       .attr('d', arc)
       .attr('fill', d => colorScale(d.data.status))
-      .attr('stroke', 'white')
-      .attr('stroke-width', 3)
+      .attr('stroke', '#333')
+      .attr('stroke-width', 2)
       .style('cursor', 'pointer')
       .on('mouseover', function(event, d) {
         d3.select(this).style('opacity', 0.8).style('filter', 'brightness(1.1)');
@@ -143,39 +162,30 @@ const DonutChart = ({ data, width = 800, height = 750 }) => {
     const fixedLabelsGroup = fixedContainer.append('g')
       .attr('transform', `translate(${width / 2}, ${height / 2})`);
 
-    // Add connecting lines from arc to labels (zoomable)
+    // Add straight connecting lines from arc to labels (zoomable)
     donutGroup.selectAll('.label-line')
       .data(pie(chartData))
-      .enter().append('polyline')
+      .enter().append('line')
       .attr('class', 'label-line')
       .attr('stroke', '#888')
       .attr('stroke-width', 1)
-      .attr('fill', 'none')
       .attr('opacity', 0.6)
-      .attr('points', d => {
-        const centroid = arc.centroid(d);
-        const labelCentroid = labelArc.centroid(d);
-        const angle = (d.startAngle + d.endAngle) / 2;
-        const factor = angle > Math.PI ? 1.3 : 1.3;
-        const finalPos = [labelCentroid[0] * factor, labelCentroid[1] * factor];
-        return [centroid, labelCentroid, finalPos].map(p => p.join(',')).join(' ');
-      });
+      .attr('x1', d => arc.centroid(d)[0])
+      .attr('y1', d => arc.centroid(d)[1])
+      .attr('x2', d => labelArc.centroid(d)[0])
+      .attr('y2', d => labelArc.centroid(d)[1]);
 
-    // Add external labels with better positioning (zoomable)
+    // Add external labels
     donutGroup.selectAll('.external-label')
       .data(pie(chartData))
       .enter().append('text')
       .attr('class', 'external-label')
-      .attr('transform', d => {
-        const centroid = labelArc.centroid(d);
-        const angle = (d.startAngle + d.endAngle) / 2;
-        // Push labels further out for better spacing
-        const factor = angle > Math.PI ? 1.3 : 1.3;
-        return `translate(${centroid[0] * factor}, ${centroid[1] * factor})`;
-      })
+      .attr('transform', d => `translate(${labelArc.centroid(d)})`)
       .attr('text-anchor', d => {
-        const angle = (d.startAngle + d.endAngle) / 2;
-        return angle > Math.PI ? 'end' : 'start';
+        const labelPos = labelArc.centroid(d);
+        // If label is on right side (positive x), start text from line end
+        // If label is on left side (negative x), end text at line end
+        return labelPos[0] > 0 ? 'start' : 'end';
       })
       .attr('font-size', '12px')
       .attr('font-weight', '600')

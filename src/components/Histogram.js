@@ -35,90 +35,133 @@ const Histogram = ({ data, width = 600, height = 400 }) => {
 
     const variableData = processedData.map(d => getVariableValue(d, variable));
     
-    const xScale = d3.scaleLinear()
-      .domain(d3.extent(variableData))
+    // Create uniform bins for equal width bars
+    const [minVal, maxVal] = d3.extent(variableData);
+    const binWidth = (maxVal - minVal) / binCount;
+    
+    // Create uniform bins manually
+    const uniformBins = [];
+    for (let i = 0; i < binCount; i++) {
+      const binStart = minVal + (i * binWidth);
+      const binEnd = binStart + binWidth;
+      const binData = processedData.filter(d => {
+        const value = getVariableValue(d, variable);
+        return value >= binStart && (i === binCount - 1 ? value <= binEnd : value < binEnd);
+      });
+      
+      uniformBins.push({
+        x0: binStart,
+        x1: binEnd,
+        length: binData.length,
+        data: binData
+      });
+    }
+
+    // Use band scale for equal width bars
+    const xScale = d3.scaleBand()
+      .domain(uniformBins.map((d, i) => i))
+      .range([0, innerWidth])
+      .padding(0.1);
+
+    // Create a linear scale for axis labels
+    const xAxisScale = d3.scaleLinear()
+      .domain([minVal, maxVal])
       .range([0, innerWidth]);
 
-    const histogram = d3.histogram()
-      .value(d => getVariableValue(d, variable))
-      .domain(xScale.domain())
-      .thresholds(binCount);
-
-    const bins = histogram(processedData);
-
     const yScale = d3.scaleLinear()
-      .domain([0, d3.max(bins, d => d.length)])
+      .domain([0, d3.max(uniformBins, d => d.length)])
       .range([innerHeight, 0]);
 
-    const colorScale = d3.scaleSequential(d3.interpolateViridis)
-      .domain([0, bins.length - 1]);
+    // Use a custom purple palette with opacity variation for better visibility
+    const maxCount = d3.max(uniformBins, d => d.length);
+    const basePurple = '#6A5ACD'; // Slate blue base color
+    
+    // Function to create purple with varying opacity
+    const getBarColor = (count) => {
+      if (count === 0) return '#E6E6FA'; // Light lavender for empty bins
+      const opacity = Math.max(0.4, (count / maxCount)); // 40% to 100% opacity
+      return d3.color(basePurple).copy({opacity: opacity}).toString();
+    };
 
     const g = svg.append('g')
       .attr('transform', `translate(${margin.left},${margin.top})`);
 
-    // Add bars
+    // Create persistent tooltip
+    const tooltip = svg.append('g')
+      .attr('class', 'tooltip')
+      .style('pointer-events', 'none')
+      .style('opacity', 0);
+
+    const tooltipRect = tooltip.append('rect')
+      .attr('fill', 'black')
+      .attr('opacity', 0.8)
+      .attr('rx', 3);
+
+    const tooltipText = tooltip.append('text')
+      .attr('fill', 'white')
+      .attr('font-size', '12px')
+      .attr('dy', '0.35em');
+
+    // Format values function
+    const formatValue = (val) => {
+      if (variable === 'price') return `$${(val/1000000).toFixed(1)}M`;
+      if (variable === 'area') return `${Math.round(val).toLocaleString()} sq ft`;
+      if (variable === 'pricePerSqFt') return `$${Math.round(val).toLocaleString()}`;
+      return Math.round(val);
+    };
+
+    // Add bars with equal widths
     g.selectAll('rect')
-      .data(bins)
+      .data(uniformBins)
       .enter().append('rect')
-      .attr('x', d => xScale(d.x0))
+      .attr('x', (d, i) => xScale(i))
       .attr('y', d => yScale(d.length))
-      .attr('width', d => Math.max(0, xScale(d.x1) - xScale(d.x0) - 1))
+      .attr('width', xScale.bandwidth())
       .attr('height', d => innerHeight - yScale(d.length))
-      .attr('fill', (d, i) => colorScale(i))
+      .attr('fill', d => getBarColor(d.length))
+      .attr('stroke', '#fff')
+      .attr('stroke-width', 1)
       .on('mouseenter', function(event, d) {
         d3.select(this).attr('opacity', 0.7);
         
-        // Remove any existing tooltips first
-        g.selectAll('.tooltip').remove();
+        // Update tooltip content
+        tooltipText.selectAll('tspan').remove();
+        tooltipText.append('tspan').attr('x', 0).attr('dy', '0em')
+          .text(`Range: ${formatValue(d.x0)} - ${formatValue(d.x1)}`);
+        tooltipText.append('tspan').attr('x', 0).attr('dy', '1.2em')
+          .text(`Count: ${d.length} properties`);
         
-        // Tooltip
-        const tooltip = g.append('g')
-          .attr('class', 'tooltip')
-          .style('pointer-events', 'none');
-        
-        const rect = tooltip.append('rect')
-          .attr('fill', 'black')
-          .attr('opacity', 0.8)
-          .attr('rx', 3);
-        
-        const text = tooltip.append('text')
-          .attr('fill', 'white')
-          .attr('font-size', '12px')
-          .attr('dy', '0.35em');
-        
-        text.append('tspan').attr('x', 0).attr('dy', '0em')
-          .text(`Price Range: $${(d.x0/1000000).toFixed(1)}M - $${(d.x1/1000000).toFixed(1)}M`);
-        text.append('tspan').attr('x', 0).attr('dy', '1.2em').text(`Count: ${d.length} houses`);
-        
-        const bbox = text.node().getBBox();
-        rect.attr('x', bbox.x - 5).attr('y', bbox.y - 5)
+        // Update tooltip box size
+        const bbox = tooltipText.node().getBBox();
+        tooltipRect.attr('x', bbox.x - 5).attr('y', bbox.y - 5)
           .attr('width', bbox.width + 10).attr('height', bbox.height + 10);
         
-        // Position tooltip above mouse cursor
-        const [mouseX, mouseY] = d3.pointer(event, g.node());
-        tooltip.attr('transform', `translate(${mouseX - bbox.width/2},${mouseY - bbox.height - 15})`);
+        // Position and show tooltip
+        const [mouseX, mouseY] = d3.pointer(event, svg.node());
+        tooltip.attr('transform', `translate(${mouseX - bbox.width/2},${mouseY - bbox.height - 10})`)
+          .style('opacity', 1);
       })
       .on('mousemove', function(event, d) {
         // Update tooltip position as mouse moves
-        const tooltip = g.select('.tooltip');
-        if (!tooltip.empty()) {
-          const bbox = tooltip.select('text').node().getBBox();
-          const [mouseX, mouseY] = d3.pointer(event, g.node());
-          tooltip.attr('transform', `translate(${mouseX - bbox.width/2},${mouseY - bbox.height - 15})`);
-        }
+        const bbox = tooltipText.node().getBBox();
+        const [mouseX, mouseY] = d3.pointer(event, svg.node());
+        tooltip.attr('transform', `translate(${mouseX - bbox.width/2},${mouseY - bbox.height - 10})`);
       })
       .on('mouseleave', function() {
         d3.select(this).attr('opacity', 1);
-        // Add small delay to prevent rapid flickering
-        setTimeout(() => {
-          g.selectAll('.tooltip').remove();
-        }, 50);
+        // Hide tooltip
+        tooltip.style('opacity', 0);
       });
 
-    // X axis
+    // X axis with proper labels
     g.append('g')
       .attr('transform', `translate(0,${innerHeight})`)
-      .call(d3.axisBottom(xScale).tickFormat(d => `$${d/1000000}M`));
+      .call(d3.axisBottom(xAxisScale).ticks(6).tickFormat(d => {
+        if (variable === 'price') return `$${(d/1000000).toFixed(1)}M`;
+        if (variable === 'area') return `${Math.round(d/1000)}K sq ft`;
+        if (variable === 'pricePerSqFt') return `$${Math.round(d)}`;
+        return Math.round(d);
+      }));
 
     // Y axis
     g.append('g')

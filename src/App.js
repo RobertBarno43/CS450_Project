@@ -10,6 +10,9 @@ import FeaturePremiumChart from './components/FeaturePremiumChart';
 function App() {
   const [selectedChart, setSelectedChart] = useState('all');
   const [filteredData, setFilteredData] = useState(realEstateData);
+  const [bedroomFilter, setBedroomFilter] = useState('all');
+  const [priceFilter, setPriceFilter] = useState('all');
+  const [amenityFilter, setAmenityFilter] = useState('all');
 
   // Filter functions
   const filterByBedrooms = (minBed, maxBed) => {
@@ -24,6 +27,9 @@ function App() {
 
   const resetFilters = () => {
     setFilteredData(realEstateData);
+    setBedroomFilter('all');
+    setPriceFilter('all');
+    setAmenityFilter('all');
   };
 
   const calculateStats = () => {
@@ -93,8 +99,9 @@ function App() {
         <div className="filter-controls">
           <div className="filter-group">
             <label htmlFor="bedroom-filter">Property Size:</label>
-            <select id="bedroom-filter" onChange={(e) => {
+            <select id="bedroom-filter" value={bedroomFilter} onChange={(e) => {
               const value = e.target.value;
+              setBedroomFilter(value);
               if (value === 'all') resetFilters();
               else if (value === 'small') filterByBedrooms(1, 2);
               else if (value === 'medium') filterByBedrooms(3, 3);
@@ -109,8 +116,9 @@ function App() {
           
           <div className="filter-group">
             <label htmlFor="price-filter">Market Segment:</label>
-            <select id="price-filter" onChange={(e) => {
+            <select id="price-filter" value={priceFilter} onChange={(e) => {
               const value = e.target.value;
+              setPriceFilter(value);
               if (value === 'all') resetFilters();
               else if (value === 'affordable') filterByPrice(0, 4000000);
               else if (value === 'premium') filterByPrice(4000000, 8000000);
@@ -125,8 +133,9 @@ function App() {
 
           <div className="filter-group">
             <label htmlFor="amenity-filter">Premium Amenities:</label>
-            <select id="amenity-filter" onChange={(e) => {
+            <select id="amenity-filter" value={amenityFilter} onChange={(e) => {
               const value = e.target.value;
+              setAmenityFilter(value);
               if (value === 'all') {
                 setFilteredData(realEstateData);
               } else if (value === 'ac') {
@@ -195,31 +204,31 @@ function App() {
       <div className="charts-container">
         {(selectedChart === 'all' || selectedChart === 'scatter') && (
           <div className="chart-wrapper">
-            <ScatterPlot data={filteredData} width={600} height={400} />
+            <ScatterPlot data={filteredData} width={550} height={400} />
           </div>
         )}
 
         {(selectedChart === 'all' || selectedChart === 'histogram') && (
           <div className="chart-wrapper">
-            <Histogram data={filteredData} width={600} height={400} />
+            <Histogram data={filteredData} width={550} height={400} />
           </div>
         )}
 
         {(selectedChart === 'all' || selectedChart === 'donut') && (
           <div className="chart-wrapper">
-            <DonutChart data={filteredData} width={800} height={750} />
+            <DonutChart data={filteredData} width={550} height={500} />
           </div>
         )}
 
         {(selectedChart === 'all' || selectedChart === 'heatmap') && (
           <div className="chart-wrapper">
-            <HeatmapChart data={filteredData} width={700} height={450} />
+            <HeatmapChart data={filteredData} width={550} height={400} />
           </div>
         )}
 
         {(selectedChart === 'all' || selectedChart === 'featurePremium') && (
           <div className="chart-wrapper">
-            <FeaturePremiumChart data={filteredData} width={800} height={500} />
+            <FeaturePremiumChart data={filteredData} width={1000} height={450} />
           </div>
         )}
       </div>

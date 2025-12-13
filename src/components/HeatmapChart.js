@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
+// Colors handled by d3 built-in scheme for heatmap gradient
 
 const HeatmapChart = ({ data, width = 600, height = 400 }) => {
   const svgRef = useRef();
