@@ -80,7 +80,7 @@ const FeaturePremiumChart = ({ data, width = 2000, height = 500 }) => {
     const svg = d3.select(svgRef.current);
     svg.selectAll("*").remove();
 
-    const margin = { top: 20, right: 270, bottom: 60, left: 110 };
+    const margin = { top: 20, right: 250, bottom: 60, left: 110 };
     const innerWidth = width - margin.left - margin.right;
     const innerHeight = height - margin.top - margin.bottom;
 
@@ -103,16 +103,7 @@ const FeaturePremiumChart = ({ data, width = 2000, height = 500 }) => {
         .attr('class', 'feature-bar')
         .attr('transform', `translate(0, ${yScale(feature.name)})`);
 
-      // Premium bar (colored) - full width
-      barGroup.append('rect')
-        .attr('x', 0)
-        .attr('y', 0)
-        .attr('width', xScale(feature.withFeaturePrice))
-        .attr('height', yScale.bandwidth())
-        .attr('fill', feature.color)
-        .attr('opacity', 0.8);
-
-      // Base price bar (gray) - overlaid on top
+      // Base price bar (gray) - first segment
       barGroup.append('rect')
         .attr('x', 0)
         .attr('y', 0)
@@ -121,6 +112,15 @@ const FeaturePremiumChart = ({ data, width = 2000, height = 500 }) => {
         .attr('fill', '#e0e0e0')
         .attr('stroke', '#ccc')
         .attr('stroke-width', 1);
+
+      // Premium segment (colored) - second segment  
+      barGroup.append('rect')
+        .attr('x', xScale(feature.basePrice))
+        .attr('y', 0)
+        .attr('width', xScale(feature.premium))
+        .attr('height', yScale.bandwidth())
+        .attr('fill', feature.color)
+        .attr('opacity', 0.8);
 
       // Premium value label
       barGroup.append('text')
@@ -208,14 +208,14 @@ const FeaturePremiumChart = ({ data, width = 2000, height = 500 }) => {
     // Legend
     const legend = g.append('g')
       .attr('class', 'legend')
-      .attr('transform', `translate(${innerWidth + 140}, 20)`);
+      .attr('transform', `translate(${innerWidth + 120}, 20)`);
 
     // Legend background
     legend.append('rect')
       .attr('x', -5)
       .attr('y', -5)
       .attr('width', 140)
-      .attr('height', 60)
+      .attr('height', 65)
       .attr('fill', '#f8f9fa')
       .attr('stroke', '#dee2e6')
       .attr('stroke-width', 1)
@@ -262,10 +262,10 @@ const FeaturePremiumChart = ({ data, width = 2000, height = 500 }) => {
     // ROI insights box
     const insights = g.append('g')
       .attr('class', 'insights-box')
-      .attr('transform', `translate(${innerWidth + 140}, 140)`);
+      .attr('transform', `translate(${innerWidth + 120}, 105)`);
 
     insights.append('rect')
-      .attr('width', 90)
+      .attr('width', 120)
       .attr('height', 100)
       .attr('fill', '#f8f9fa')
       .attr('stroke', displayFeature.color)
@@ -273,7 +273,7 @@ const FeaturePremiumChart = ({ data, width = 2000, height = 500 }) => {
       .attr('rx', 5);
 
     insights.append('text')
-      .attr('x', 45)
+      .attr('x', 60)
       .attr('y', 15)
       .attr('text-anchor', 'middle')
       .style('font-size', '11px')
@@ -282,7 +282,7 @@ const FeaturePremiumChart = ({ data, width = 2000, height = 500 }) => {
       .text(isBestROI ? '💡 BEST ROI' : '📊 FEATURE ROI');
 
     insights.append('text')
-      .attr('x', 45)
+      .attr('x', 60)
       .attr('y', 35)
       .attr('text-anchor', 'middle')
       .style('font-size', '10px')
@@ -290,7 +290,7 @@ const FeaturePremiumChart = ({ data, width = 2000, height = 500 }) => {
       .text(displayFeature.name.split(' ')[0]);
 
     insights.append('text')
-      .attr('x', 45)
+      .attr('x', 60)
       .attr('y', 50)
       .attr('text-anchor', 'middle')
       .style('font-size', '12px')
@@ -299,7 +299,7 @@ const FeaturePremiumChart = ({ data, width = 2000, height = 500 }) => {
       .text(`+$${Math.round(displayFeature.premium / 1000)}K`);
 
     insights.append('text')
-      .attr('x', 45)
+      .attr('x', 60)
       .attr('y', 65)
       .attr('text-anchor', 'middle')
       .style('font-size', '10px')
@@ -307,7 +307,7 @@ const FeaturePremiumChart = ({ data, width = 2000, height = 500 }) => {
       .text(`(${displayFeature.premiumPercent.toFixed(1)}% gain)`);
 
     insights.append('text')
-      .attr('x', 45)
+      .attr('x', 60)
       .attr('y', 85)
       .attr('text-anchor', 'middle')
       .style('font-size', '9px')
@@ -317,7 +317,7 @@ const FeaturePremiumChart = ({ data, width = 2000, height = 500 }) => {
     // ROI calculation explanation below the ROI box
     const roiExplanation = g.append('g')
       .attr('class', 'roi-explanation')
-      .attr('transform', `translate(${innerWidth + 140}, 250)`);
+      .attr('transform', `translate(${innerWidth + 120}, 230)`);
 
     roiExplanation.append('text')
       .attr('x', 0)

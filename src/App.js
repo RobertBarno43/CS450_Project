@@ -102,7 +102,7 @@ function App() {
             <select id="bedroom-filter" value={bedroomFilter} onChange={(e) => {
               const value = e.target.value;
               setBedroomFilter(value);
-              if (value === 'all') resetFilters();
+              if (value === 'all') setFilteredData(realEstateData);
               else if (value === 'small') filterByBedrooms(1, 2);
               else if (value === 'medium') filterByBedrooms(3, 3);
               else if (value === 'large') filterByBedrooms(4, 6);
@@ -119,7 +119,7 @@ function App() {
             <select id="price-filter" value={priceFilter} onChange={(e) => {
               const value = e.target.value;
               setPriceFilter(value);
-              if (value === 'all') resetFilters();
+              if (value === 'all') setFilteredData(realEstateData);
               else if (value === 'affordable') filterByPrice(0, 4000000);
               else if (value === 'premium') filterByPrice(4000000, 8000000);
               else if (value === 'luxury') filterByPrice(8000000, Infinity);

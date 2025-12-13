@@ -141,8 +141,8 @@ button.active {
 
 .charts-container {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(600px, 1fr));
-  gap: 30px;
+  grid-template-columns: repeat(auto-fit, minmax(1125px, 1fr));
+  gap: 38px;
   justify-content: center;
   margin-bottom: 30px;
   padding: 0 20px;
@@ -151,11 +151,11 @@ button.active {
 .chart-wrapper {
   background: rgba(255, 255, 255, 0.95);
   border-radius: 15px;
-  padding: 20px;
+  padding: 44px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
   backdrop-filter: blur(10px);
   transition: transform 0.3s ease;
-  overflow: hidden;
+  overflow: visible;
   max-width: 100%;
 }
 
