@@ -1,0 +1,300 @@
+import React, { useEffect, useRef, useState } from 'react';
+import * as d3 from 'd3';
+
+const DonutChart = ({ data, width = 800, height = 750 }) => {
+  const svgRef = useRef();  const zoomRef = useRef();  const [analysisType, setAnalysisType] = useState('furnishingstatus');
+
+  useEffect(() => {
+    const svg = d3.select(svgRef.current);
+    svg.selectAll("*").remove();
+
+    const radius = Math.min(width, height) / 2 - 180;
+    const innerRadius = radius * 0.4;
+
+
+
+    // Create fixed container for labels
+    const fixedContainer = svg.append('g');
+    
+    // Create zoomable container for donut only
+    const zoomContainer = svg.append('g')
+      .attr('class', 'zoom-container');
+
+    // Set up zoom behavior
+    const zoom = d3.zoom()
+      .scaleExtent([0.1, 5]) // Allow zoom from 10% to 500%
+      .on('zoom', (event) => {
+        zoomContainer.attr('transform', event.transform);
+      });
+
+    // Apply zoom behavior to SVG
+    svg.call(zoom)
+      .on('dblclick.zoom', null); // Disable double-click to zoom
+    
+    // Store zoom reference for button controls
+    zoomRef.current = zoom;
+
+    // Dynamic data processing based on analysis type
+    const processDataByType = (type) => {
+      switch(type) {
+        case 'furnishingstatus':
+          return d3.rollup(data, v => v.length, d => d.furnishingstatus);
+        case 'stories':
+          return d3.rollup(data, v => v.length, d => `${d.stories} ${d.stories === 1 ? 'Story' : 'Stories'}`);
+        case 'bedrooms':
+          return d3.rollup(data, v => v.length, d => `${d.bedrooms} ${d.bedrooms === 1 ? 'Bedroom' : 'Bedrooms'}`);
+        case 'location':
+          return d3.rollup(data, v => v.length, d => d.prefarea ? 'Preferred Area' : 'Standard Area');
+        default:
+          return d3.rollup(data, v => v.length, d => d.furnishingstatus);
+      }
+    };
+
+    const counts = processDataByType(analysisType);
+    const chartData = Array.from(counts, ([status, count]) => ({ status, count }));
+
+    const colorScale = d3.scaleOrdinal()
+      .domain(chartData.map(d => d.status))
+      .range(['#3498DB', '#E74C3C', '#2ECC71', '#F39C12', '#9B59B6', '#1ABC9C', '#E67E22']);
+
+    const pie = d3.pie()
+      .value(d => d.count)
+      .sort(null)
+      .startAngle(-Math.PI / 2)
+      .endAngle(3 * Math.PI / 2);
+
+    const arc = d3.arc()
+      .innerRadius(innerRadius)
+      .outerRadius(radius);
+
+    const labelArc = d3.arc()
+      .innerRadius(radius + 50)
+      .outerRadius(radius + 50);
+
+    // Zoomable donut group
+    const donutGroup = zoomContainer.append('g')
+      .attr('transform', `translate(${width / 2}, ${height / 2})`);
+
+    const arcs = donutGroup.selectAll('.arc')
+      .data(pie(chartData))
+      .enter().append('g')
+      .attr('class', 'arc');
+
+    // Add the arcs (zoomable)
+    arcs.append('path')
+      .attr('d', arc)
+      .attr('fill', d => colorScale(d.data.status))
+      .attr('stroke', 'white')
+      .attr('stroke-width', 3)
+      .style('cursor', 'pointer')
+      .on('mouseover', function(event, d) {
+        d3.select(this).style('opacity', 0.8).style('filter', 'brightness(1.1)');
+        
+        // Show center text
+        donutGroup.selectAll('.center-text').remove();
+        const centerText = donutGroup.append('g').attr('class', 'center-text');
+        
+        centerText.append('text')
+          .attr('text-anchor', 'middle')
+          .attr('dy', '-1em')
+          .attr('font-size', '13px')
+          .attr('font-weight', 'bold')
+          .attr('fill', '#333')
+          .text(d.data.status);
+        
+        centerText.append('text')
+          .attr('text-anchor', 'middle')
+          .attr('dy', '0.5em')
+          .attr('font-size', '32px')
+          .attr('font-weight', 'bold')
+          .attr('fill', colorScale(d.data.status))
+          .text(d.data.count);
+        
+        centerText.append('text')
+          .attr('text-anchor', 'middle')
+          .attr('dy', '2em')
+          .attr('font-size', '14px')
+          .attr('fill', '#666')
+          .text(`${((d.data.count / data.length) * 100).toFixed(1)}%`);
+      })
+      .on('mouseout', function() {
+        d3.select(this).style('opacity', 1).style('filter', 'brightness(1)');
+        donutGroup.selectAll('.center-text').remove();
+      });
+
+    // Add percentage labels on arcs (zoomable - only for larger slices)
+    donutGroup.selectAll('.percentage-label')
+      .data(pie(chartData))
+      .enter().append('text')
+      .attr('class', 'percentage-label')
+      .attr('transform', d => `translate(${arc.centroid(d)})`)
+      .attr('text-anchor', 'middle')
+      .attr('font-size', '12px')
+      .attr('fill', 'white')
+      .attr('font-weight', 'bold')
+      .style('text-shadow', '1px 1px 2px rgba(0,0,0,0.9)')
+      .style('pointer-events', 'none')
+      .text(d => {
+        const percentage = ((d.data.count / data.length) * 100);
+        return percentage > 10 ? `${percentage.toFixed(1)}%` : ''; // Only show on slices > 10%
+      });
+    
+    // Fixed labels group
+    const fixedLabelsGroup = fixedContainer.append('g')
+      .attr('transform', `translate(${width / 2}, ${height / 2})`);
+
+    // Add connecting lines from arc to labels (zoomable)
+    donutGroup.selectAll('.label-line')
+      .data(pie(chartData))
+      .enter().append('polyline')
+      .attr('class', 'label-line')
+      .attr('stroke', '#888')
+      .attr('stroke-width', 1)
+      .attr('fill', 'none')
+      .attr('opacity', 0.6)
+      .attr('points', d => {
+        const centroid = arc.centroid(d);
+        const labelCentroid = labelArc.centroid(d);
+        const angle = (d.startAngle + d.endAngle) / 2;
+        const factor = angle > Math.PI ? 1.3 : 1.3;
+        const finalPos = [labelCentroid[0] * factor, labelCentroid[1] * factor];
+        return [centroid, labelCentroid, finalPos].map(p => p.join(',')).join(' ');
+      });
+
+    // Add external labels with better positioning (zoomable)
+    donutGroup.selectAll('.external-label')
+      .data(pie(chartData))
+      .enter().append('text')
+      .attr('class', 'external-label')
+      .attr('transform', d => {
+        const centroid = labelArc.centroid(d);
+        const angle = (d.startAngle + d.endAngle) / 2;
+        // Push labels further out for better spacing
+        const factor = angle > Math.PI ? 1.3 : 1.3;
+        return `translate(${centroid[0] * factor}, ${centroid[1] * factor})`;
+      })
+      .attr('text-anchor', d => {
+        const angle = (d.startAngle + d.endAngle) / 2;
+        return angle > Math.PI ? 'end' : 'start';
+      })
+      .attr('font-size', '12px')
+      .attr('font-weight', '600')
+      .attr('fill', '#444')
+      .text(d => d.data.status);
+
+    // Dynamic title based on analysis type
+    const getTitleText = (type) => {
+      switch(type) {
+        case 'furnishingstatus': return 'Distribution by Furnishing Status';
+        case 'stories': return 'Distribution by Stories';
+        case 'bedrooms': return 'Distribution by Bedrooms';
+        case 'location': return 'Preferred vs Standard Areas';
+        default: return 'Market Distribution';
+      }
+    };
+
+    fixedLabelsGroup.append('text')
+      .attr('y', -height/2 + 15)
+      .attr('text-anchor', 'middle')
+      .attr('font-size', '16px')
+      .attr('font-weight', 'bold')
+      .attr('fill', '#333')
+      .text(getTitleText(analysisType));
+
+  }, [data, width, height, analysisType]);
+
+  const getTitleByType = (type) => {
+    switch(type) {
+      case 'furnishingstatus': return 'Investment Readiness Spectrum';
+      case 'stories': return 'Property Height Distribution';
+      case 'bedrooms': return 'Bedroom Configuration Mix';
+      case 'location': return 'Location Premium Analysis';
+      default: return 'Market Analysis';
+    }
+  };
+
+  const getDescriptionByType = (type) => {
+    switch(type) {
+      case 'furnishingstatus': return 'Analyze property readiness levels to identify quick rental opportunities vs. value-add renovation projects for maximum ROI.';
+      case 'stories': return 'Property height affects both price and buyer preferences - analyze single vs multi-story trends.';
+      case 'bedrooms': return 'Bedroom distribution shows market demand patterns and investment sweet spots.';
+      case 'location': return 'Location preference analysis shows the premium commanded by preferred areas.'
+      default: return 'Explore different aspects of the real estate market.';
+    }
+  };
+
+  return (
+    <div>
+      <h3>Market Composition Analysis: {getTitleByType(analysisType)}</h3>
+      <p className="chart-description">
+        <strong>Market Insight:</strong> {getDescriptionByType(analysisType)}
+      </p>
+      
+      {/* Interactive Controls */}
+      <div style={{ marginBottom: '15px', padding: '10px', backgroundColor: '#f8f9fa', borderRadius: '5px' }}>
+        <label style={{ fontWeight: 'bold', marginRight: '10px' }}>Analyze by:</label>
+        <div style={{ display: 'flex', gap: '15px', marginTop: '5px', flexWrap: 'wrap' }}>
+          <label style={{ cursor: 'pointer' }}><input type="radio" name="analysis" value="furnishingstatus" checked={analysisType === 'furnishingstatus'} onChange={(e) => setAnalysisType(e.target.value)} /> Furnishing</label>
+          <label style={{ cursor: 'pointer' }}><input type="radio" name="analysis" value="stories" checked={analysisType === 'stories'} onChange={(e) => setAnalysisType(e.target.value)} /> Stories</label>
+          <label style={{ cursor: 'pointer' }}><input type="radio" name="analysis" value="bedrooms" checked={analysisType === 'bedrooms'} onChange={(e) => setAnalysisType(e.target.value)} /> Bedrooms</label>
+          <label style={{ cursor: 'pointer' }}><input type="radio" name="analysis" value="location" checked={analysisType === 'location'} onChange={(e) => setAnalysisType(e.target.value)} /> Location</label>
+        </div>
+      </div>
+      
+      <div style={{ position: 'relative' }}>
+        <svg ref={svgRef} width={width} height={height} style={{ border: '1px solid #ddd', borderRadius: '5px' }}></svg>
+        
+        {/* Zoom Controls */}
+        <div style={{ position: 'absolute', top: '10px', right: '10px', display: 'flex', flexDirection: 'column', gap: '5px' }}>
+          <button 
+            onClick={() => {
+              const svg = d3.select(svgRef.current);
+              if (zoomRef.current) {
+                svg.transition().duration(300).call(
+                  zoomRef.current.scaleBy, 1.5
+                );
+              }
+            }}
+            style={{ padding: '5px 8px', border: 'none', borderRadius: '3px', background: '#007bff', color: 'white', cursor: 'pointer', fontSize: '12px' }}
+          >
+            🔍+
+          </button>
+          <button 
+            onClick={() => {
+              const svg = d3.select(svgRef.current);
+              if (zoomRef.current) {
+                svg.transition().duration(300).call(
+                  zoomRef.current.scaleBy, 1/1.5
+                );
+              }
+            }}
+            style={{ padding: '5px 8px', border: 'none', borderRadius: '3px', background: '#007bff', color: 'white', cursor: 'pointer', fontSize: '12px' }}
+          >
+            🔍-
+          </button>
+          <button 
+            onClick={() => {
+              const svg = d3.select(svgRef.current);
+              if (zoomRef.current) {
+                svg.transition().duration(500).call(
+                  zoomRef.current.transform, d3.zoomIdentity
+                );
+              }
+            }}
+            style={{ padding: '5px 8px', border: 'none', borderRadius: '3px', background: '#6c757d', color: 'white', cursor: 'pointer', fontSize: '10px' }}
+          >
+            Reset
+          </button>
+        </div>
+      </div>
+      
+      <div className="chart-insights">
+        <small>� <strong>Investment Strategy:</strong> 
+        • Focus on property types with high demand • Unfurnished = renovation opportunity • Furnished = quick rental income<br/>
+        🎛️ <strong>Controls:</strong> Drag to explore • Zoom for details • Switch categories to find your investment niche!</small>
+      </div>
+    </div>
+  );
+};
+
+export default DonutChart;
