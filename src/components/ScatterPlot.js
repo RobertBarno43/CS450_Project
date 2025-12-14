@@ -70,7 +70,7 @@ const ScatterPlot = ({ data, width = 600, height = 400 }) => {
 
     // Set up zoom behavior with more generous panning limits
     const zoom = d3.zoom()
-      .scaleExtent([0.5, 5]) // Allow zoom from 50% to 500%
+      .scaleExtent([0.75, 5]) // Allow zoom from 75% to 500%
       .translateExtent([[-innerWidth * 0.5, -innerHeight * 0.5], [innerWidth * 2, innerHeight * 2]]) // Allow generous panning
       .on('zoom', (event) => {
         const { transform } = event;
@@ -100,7 +100,46 @@ const ScatterPlot = ({ data, width = 600, height = 400 }) => {
     // Store zoom reference for button controls
     zoomRef.current = zoom;
 
-    // Add dots to zoomable container
+    // Calculate and add trend line first (so it appears behind data points)
+    const n = data.length;
+    const sumX = d3.sum(data, d => d.area);
+    const sumY = d3.sum(data, d => d.price);
+    const sumXY = d3.sum(data, d => d.area * d.price);
+    const sumXX = d3.sum(data, d => d.area * d.area);
+    
+    const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+    const intercept = (sumY - slope * sumX) / n;
+    
+    // Create trend line data points
+    const xExtentForLine = d3.extent(data, d => d.area);
+    const trendLineData = [
+      { x: xExtentForLine[0], y: slope * xExtentForLine[0] + intercept },
+      { x: xExtentForLine[1], y: slope * xExtentForLine[1] + intercept }
+    ];
+    
+    // Add trend line to zoomable container (behind data points)
+    zoomContainer.append('line')
+      .attr('class', 'trend-line')
+      .attr('x1', xScale(trendLineData[0].x))
+      .attr('y1', yScale(trendLineData[0].y))
+      .attr('x2', xScale(trendLineData[1].x))
+      .attr('y2', yScale(trendLineData[1].y))
+      .attr('stroke', '#000000')
+      .attr('stroke-width', 3)
+      .attr('stroke-dasharray', '8,4')
+      .attr('opacity', 0.9);
+
+    // Add trend line label
+    zoomContainer.append('text')
+      .attr('x', xScale(xExtentForLine[1]) - 140)
+      .attr('y', yScale(trendLineData[1].y) - 15)
+      .attr('fill', '#000000')
+      .attr('font-size', '12px')
+      .attr('font-weight', 'bold')
+      .attr('text-anchor', 'end')
+      .text(' Trend Line');
+
+    // Add dots to zoomable container (on top of trend line)
     zoomContainer.selectAll('circle')
       .data(data)
       .enter().append('circle')
@@ -273,11 +312,37 @@ const ScatterPlot = ({ data, width = 600, height = 400 }) => {
           </button>
         </div>
       </div>
+
+      {/* Trend Line Explanation Box */}
+      <div style={{ 
+        fontSize: '12px', 
+        marginTop: '10px', 
+        color: '#333', 
+        backgroundColor: '#fff3cd', 
+        border: '1px solid #ffeaa7',
+        padding: '12px', 
+        borderRadius: '8px',
+        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+      }}>
+        <div style={{ fontWeight: 'bold', marginBottom: '8px', color: '#856404' }}>
+          📊 Understanding the Trend Line
+        </div>
+        <div style={{ marginBottom: '6px' }}>
+          <strong>What it shows:</strong> The black dashed line represents the average relationship between property size (area) and price across all properties.
+        </div>
+        <div style={{ marginBottom: '6px' }}>
+          <strong>How to use it:</strong> Properties <span style={{color: '#28a745', fontWeight: 'bold'}}>below the line</span> may be underpriced (potential bargains), 
+          while properties <span style={{color: '#dc3545', fontWeight: 'bold'}}>above the line</span> may be premium or overpriced.
+        </div>
+        <div>
+          <strong>Investment insight:</strong> Look for properties significantly below the trend line for the best value opportunities!
+        </div>
+      </div>
       
       <div style={{ fontSize: '12px', marginTop: '10px', color: '#666', backgroundColor: '#f8f9fa', padding: '10px', borderRadius: '5px' }}>
-        <strong>🏠 Investment Strategy:</strong> Properties below the trend line = potential bargains • 
+        <strong>📈 Investment Strategy:</strong> Properties below the trend line = potential bargains • 
         Properties with AC/parking in good areas = premium resale value • 
-        <strong>📊 Controls:</strong> Zoom to examine price clusters • Drag to explore different market segments
+        <strong>🎯 Analysis Tip:</strong> Black dashed line shows market trend - look for properties significantly below for value opportunities
       </div>
     </div>
   );
