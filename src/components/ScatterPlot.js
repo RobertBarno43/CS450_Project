@@ -100,46 +100,7 @@ const ScatterPlot = ({ data, width = 600, height = 400 }) => {
     // Store zoom reference for button controls
     zoomRef.current = zoom;
 
-    // Calculate and add trend line first (so it appears behind data points)
-    const n = data.length;
-    const sumX = d3.sum(data, d => d.area);
-    const sumY = d3.sum(data, d => d.price);
-    const sumXY = d3.sum(data, d => d.area * d.price);
-    const sumXX = d3.sum(data, d => d.area * d.area);
-    
-    const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
-    const intercept = (sumY - slope * sumX) / n;
-    
-    // Create trend line data points
-    const xExtentForLine = d3.extent(data, d => d.area);
-    const trendLineData = [
-      { x: xExtentForLine[0], y: slope * xExtentForLine[0] + intercept },
-      { x: xExtentForLine[1], y: slope * xExtentForLine[1] + intercept }
-    ];
-    
-    // Add trend line to zoomable container (behind data points)
-    zoomContainer.append('line')
-      .attr('class', 'trend-line')
-      .attr('x1', xScale(trendLineData[0].x))
-      .attr('y1', yScale(trendLineData[0].y))
-      .attr('x2', xScale(trendLineData[1].x))
-      .attr('y2', yScale(trendLineData[1].y))
-      .attr('stroke', '#000000')
-      .attr('stroke-width', 3)
-      .attr('stroke-dasharray', '8,4')
-      .attr('opacity', 0.9);
-
-    // Add trend line label
-    zoomContainer.append('text')
-      .attr('x', xScale(xExtentForLine[1]) - 140)
-      .attr('y', yScale(trendLineData[1].y) - 15)
-      .attr('fill', '#000000')
-      .attr('font-size', '12px')
-      .attr('font-weight', 'bold')
-      .attr('text-anchor', 'end')
-      .text(' Trend Line');
-
-    // Add dots to zoomable container (on top of trend line)
+    // Add dots to zoomable container first
     zoomContainer.selectAll('circle')
       .data(data)
       .enter().append('circle')
@@ -177,6 +138,45 @@ const ScatterPlot = ({ data, width = 600, height = 400 }) => {
         d3.select(this).attr('r', 4).attr('opacity', 0.7);
         zoomContainer.select('.tooltip').remove();
       });
+
+    // Calculate and add trend line on top of data points
+    const n = data.length;
+    const sumX = d3.sum(data, d => d.area);
+    const sumY = d3.sum(data, d => d.price);
+    const sumXY = d3.sum(data, d => d.area * d.price);
+    const sumXX = d3.sum(data, d => d.area * d.area);
+    
+    const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+    const intercept = (sumY - slope * sumX) / n;
+    
+    // Create trend line data points
+    const xExtentForLine = d3.extent(data, d => d.area);
+    const trendLineData = [
+      { x: xExtentForLine[0], y: slope * xExtentForLine[0] + intercept },
+      { x: xExtentForLine[1], y: slope * xExtentForLine[1] + intercept }
+    ];
+    
+    // Add trend line on top of data points
+    zoomContainer.append('line')
+      .attr('class', 'trend-line')
+      .attr('x1', xScale(trendLineData[0].x))
+      .attr('y1', yScale(trendLineData[0].y))
+      .attr('x2', xScale(trendLineData[1].x))
+      .attr('y2', yScale(trendLineData[1].y))
+      .attr('stroke', '#000000')
+      .attr('stroke-width', 3)
+      .attr('stroke-dasharray', '8,4')
+      .attr('opacity', 0.9);
+
+    // Add trend line label to the right of the line end
+    zoomContainer.append('text')
+      .attr('x', xScale(trendLineData[1].x) - 140)
+      .attr('y', yScale(trendLineData[1].y) + 20)
+      .attr('fill', '#000000')
+      .attr('font-size', '12px')
+      .attr('font-weight', 'bold')
+      .attr('text-anchor', 'start')
+      .text('📈 Trend Line');
 
     // Add white background rectangles for axis areas to hide data points during zoom/pan
     // X axis background
