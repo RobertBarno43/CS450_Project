@@ -176,7 +176,7 @@ const ScatterPlot = ({ data, width = 600, height = 400 }) => {
       .attr('font-size', '12px')
       .attr('font-weight', 'bold')
       .attr('text-anchor', 'start')
-      .text('📈 Trend Line');
+      .text('Trend Line');
 
     // Add white background rectangles for axis areas to hide data points during zoom/pan
     // X axis background

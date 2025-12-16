@@ -23,7 +23,8 @@ const DonutChart = ({ data, width = 1125, height = 1063 }) => {
 
     // Set up zoom behavior
     const zoom = d3.zoom()
-      .scaleExtent([0.1, 5]) // Allow zoom from 10% to 500%
+      .scaleExtent([0.75, 5]) // Limit zoom out to 75%, allow zoom in to 500%
+      .translateExtent([[-width * 0.25, -height * 0.25], [width * 1.25, height * 1.25]]) // Stricter drag limits
       .on('zoom', (event) => {
         zoomContainer.attr('transform', event.transform);
       });
@@ -76,11 +77,33 @@ const DonutChart = ({ data, width = 1125, height = 1063 }) => {
       .domain(chartData.map(d => d.status))
       .range(chartData.map(d => getColorForCategory(d.status, analysisType)));
 
+    // Set minimum angle for small slices (0.15 radians ≈ 8.6 degrees)
+    const minAngleRad = 0.15;
+    
+    // Create pie with padding to separate slices and make small ones more visible
     const pie = d3.pie()
       .value(d => d.count)
       .sort(null)
+      .padAngle(0.02) // Add small padding between slices
       .startAngle(-Math.PI / 2)
       .endAngle(3 * Math.PI / 2);
+    
+    // Generate initial pie data
+    const pieData = pie(chartData);
+    
+    // Adjust angles to enforce minimum slice size
+    const adjustedPieData = pieData.map((d, i) => {
+      const currentAngle = d.endAngle - d.startAngle;
+      if (currentAngle < minAngleRad) {
+        const diff = minAngleRad - currentAngle;
+        return {
+          ...d,
+          endAngle: d.endAngle + diff / 2,
+          startAngle: d.startAngle - diff / 2
+        };
+      }
+      return d;
+    });
 
     const arc = d3.arc()
       .innerRadius(innerRadius)
@@ -95,7 +118,7 @@ const DonutChart = ({ data, width = 1125, height = 1063 }) => {
       .attr('transform', `translate(${width / 2}, ${height / 2})`);
 
     const arcs = donutGroup.selectAll('.arc')
-      .data(pie(chartData))
+      .data(adjustedPieData)
       .enter().append('g')
       .attr('class', 'arc');
 
@@ -103,7 +126,7 @@ const DonutChart = ({ data, width = 1125, height = 1063 }) => {
     arcs.append('path')
       .attr('d', arc)
       .attr('fill', d => colorScale(d.data.status))
-      .attr('stroke', '#333')
+      .attr('stroke', '#ffffff')
       .attr('stroke-width', 2)
       .style('cursor', 'pointer')
       .on('mouseover', function(event, d) {
@@ -164,10 +187,10 @@ const DonutChart = ({ data, width = 1125, height = 1063 }) => {
 
     // Add straight connecting lines from arc to labels (zoomable)
     donutGroup.selectAll('.label-line')
-      .data(pie(chartData))
+      .data(adjustedPieData)
       .enter().append('line')
       .attr('class', 'label-line')
-      .attr('stroke', '#888')
+      .attr('stroke', 'black')
       .attr('stroke-width', 1)
       .attr('opacity', 0.6)
       .attr('x1', d => arc.centroid(d)[0])
@@ -177,7 +200,7 @@ const DonutChart = ({ data, width = 1125, height = 1063 }) => {
 
     // Add external labels
     donutGroup.selectAll('.external-label')
-      .data(pie(chartData))
+      .data(adjustedPieData)
       .enter().append('text')
       .attr('class', 'external-label')
       .attr('transform', d => `translate(${labelArc.centroid(d)})`)
