@@ -46,18 +46,29 @@ const FeaturePremiumChart = ({ data, width = 2000, height = 500 }) => {
         const withoutFeature = data.filter(d => d[feature.key] === false);
         
         if (withFeature.length > 0 && withoutFeature.length > 0) {
-          const avgWithFeature = d3.mean(withFeature, d => d.price);
-          const avgWithoutFeature = d3.mean(withoutFeature, d => d.price);
-          const premium = avgWithFeature - avgWithoutFeature;
-          const premiumPercent = (premium / avgWithoutFeature) * 100;
+          // Calculate price per square foot for size-normalized comparison
+          const pricePerSqFtWith = d3.median(withFeature, d => d.price / d.area);
+          const pricePerSqFtWithout = d3.median(withoutFeature, d => d.price / d.area);
+          const premiumPerSqFt = pricePerSqFtWith - pricePerSqFtWithout;
+          const premiumPercent = (premiumPerSqFt / pricePerSqFtWithout) * 100;
+          
+          // Calculate typical house size for display purposes
+          const avgHouseSize = d3.median(data, d => d.area);
+          const premium = premiumPerSqFt * avgHouseSize;
+          const basePrice = pricePerSqFtWithout * avgHouseSize;
+          const withFeaturePrice = pricePerSqFtWith * avgHouseSize;
           
           premiums[feature.key] = {
             ...feature,
             premium,
             premiumPercent,
-            basePrice: avgWithoutFeature,
-            withFeaturePrice: avgWithFeature,
-            sampleSize: withFeature.length
+            basePrice,
+            withFeaturePrice,
+            premiumPerSqFt,
+            pricePerSqFtWith,
+            pricePerSqFtWithout,
+            sampleSize: withFeature.length,
+            avgHouseSize
           };
         }
       });
@@ -122,16 +133,27 @@ const FeaturePremiumChart = ({ data, width = 2000, height = 500 }) => {
         .attr('fill', feature.color)
         .attr('opacity', 0.8);
 
-      // Premium value label
+      // Premium value label with per-sqft info
       barGroup.append('text')
         .attr('x', xScale(feature.withFeaturePrice) + 5)
-        .attr('y', yScale.bandwidth() / 2)
+        .attr('y', yScale.bandwidth() / 2 - 5)
         .attr('text-anchor', 'start')
         .attr('font-size', '11px')
         .attr('font-weight', 'bold')
         .attr('fill', feature.color)
         .attr('dy', '0.35em')
         .text(`+$${Math.round(feature.premium / 1000)}K (+${feature.premiumPercent.toFixed(1)}%)`);
+
+      // Per square foot premium label
+      barGroup.append('text')
+        .attr('x', xScale(feature.withFeaturePrice) + 5)
+        .attr('y', yScale.bandwidth() / 2 + 8)
+        .attr('text-anchor', 'start')
+        .attr('font-size', '9px')
+        .attr('font-weight', 'normal')
+        .attr('fill', feature.color)
+        .attr('dy', '0.35em')
+        .text(`(+$${Math.round(feature.premiumPerSqFt)}/sqft)`);
 
       // Base price label
       barGroup.append('text')
@@ -161,9 +183,11 @@ const FeaturePremiumChart = ({ data, width = 2000, height = 500 }) => {
           tooltip.transition().duration(200).style('opacity', 1);
           tooltip.html(`
             <strong>${feature.name}</strong><br/>
-            Base Price: $${feature.basePrice.toLocaleString()}<br/>
-            With Feature: $${feature.withFeaturePrice.toLocaleString()}<br/>
-            <strong>Premium: $${feature.premium.toLocaleString()} (+${feature.premiumPercent.toFixed(1)}%)</strong><br/>
+            <strong>Size-Normalized Analysis:</strong><br/>
+            Base Price/sqft: $${Math.round(feature.pricePerSqFtWithout)}<br/>
+            With Feature/sqft: $${Math.round(feature.pricePerSqFtWith)}<br/>
+            <strong>Premium: +$${Math.round(feature.premiumPerSqFt)}/sqft (+${feature.premiumPercent.toFixed(1)}%)</strong><br/>
+            Typical ${Math.round(feature.avgHouseSize)}sqft house: +$${Math.round(feature.premium / 1000)}K<br/>
             Sample Size: ${feature.sampleSize} properties
           `)
           .style('left', (event.pageX + 10) + 'px')
@@ -291,20 +315,28 @@ const FeaturePremiumChart = ({ data, width = 2000, height = 500 }) => {
 
     insights.append('text')
       .attr('x', 60)
-      .attr('y', 50)
+      .attr('y', 45)
       .attr('text-anchor', 'middle')
-      .style('font-size', '12px')
+      .style('font-size', '11px')
       .style('font-weight', 'bold')
       .style('fill', displayFeature.color)
-      .text(`+$${Math.round(displayFeature.premium / 1000)}K`);
+      .text(`+$${Math.round(displayFeature.premiumPerSqFt)}/sqft`);
 
     insights.append('text')
       .attr('x', 60)
-      .attr('y', 65)
+      .attr('y', 58)
       .attr('text-anchor', 'middle')
       .style('font-size', '10px')
       .style('fill', '#666')
       .text(`(${displayFeature.premiumPercent.toFixed(1)}% gain)`);
+
+    insights.append('text')
+      .attr('x', 60)
+      .attr('y', 72)
+      .attr('text-anchor', 'middle')
+      .style('font-size', '9px')
+      .style('fill', '#666')
+      .text(`≈ +$${Math.round(displayFeature.premium / 1000)}K total`);
 
     insights.append('text')
       .attr('x', 60)
@@ -345,11 +377,11 @@ const FeaturePremiumChart = ({ data, width = 2000, height = 500 }) => {
 
   return (
     <div>
-      <h3>Investment Feature Calculator - ROI by Renovation</h3>
+      <h3>Premium Feature Evaluation by Square Foot</h3>
       <p className="chart-description">
-        <strong>Investment Strategy:</strong> Calculate exact returns for each property improvement. 
-        Gray bars show base property value, colored sections show premium gained by adding specific features.
-        Focus on high-premium, low-cost renovations for maximum ROI.
+        <strong>Size-Normalized ROI Analysis:</strong> Compares price per square foot to eliminate house size bias. 
+        Shows true feature premiums independent of property size. Gray bars show base value, colored sections show 
+        actual feature premiums. Focus on high $/sqft premiums for reliable renovation ROI.
       </p>
       
       <DropdownSelector selectedFeature={selectedFeature} setSelectedFeature={setSelectedFeature} premiumData={premiumData} />
