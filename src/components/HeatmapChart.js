@@ -243,9 +243,9 @@ const HeatmapChart = ({ data, width = 600, height = 400 }) => {
 
   return (
     <div>
-      <h3>Property Configuration Profitability Matrix</h3>
+      <h3>Property Configuration Value Matrix</h3>
       <p className="chart-description">
-        <strong>Renovation Strategy:</strong> Discover the most profitable property configurations before buying. 
+        <strong>Renovation Strategy:</strong> Discover the most valuably property configurations before buying. 
         Red zones = high-value combinations to target • Yellow zones = configurations to avoid or modify. 
         Use this to plan renovations that maximize resale value.
       </p>

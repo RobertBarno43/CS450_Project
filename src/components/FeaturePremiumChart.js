@@ -303,7 +303,7 @@ const FeaturePremiumChart = ({ data, width = 2000, height = 500 }) => {
       .style('font-size', '11px')
       .style('font-weight', 'bold')
       .style('fill', displayFeature.color)
-      .text(isBestROI ? '💡 BEST ROI' : '📊 FEATURE ROI');
+      .text(isBestROI ? '💡 BEST VALUE' : '📊 FEATURE VALUE');
 
     insights.append('text')
       .attr('x', 60)

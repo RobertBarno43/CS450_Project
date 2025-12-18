@@ -243,7 +243,7 @@ function App() {
           </div>
           <div className="insight-card">
             <h4>📈 Premium Drivers</h4>
-            <p><strong>Key Finding:</strong> Air conditioning and parking spaces drive 15-25% price premiums. 
+            <p><strong>Key Finding:</strong> Air conditioning and hot water heating drive 15-25% price premiums. 
             Bedroom count creates distinct value tiers regardless of total square footage.</p>
           </div>
           <div className="insight-card">
@@ -263,7 +263,7 @@ function App() {
           </div>
           <div className="insight-card">
             <h4>⚡ Quick Wins</h4>
-            <p><strong>Immediate ROI:</strong> Adding AC ($50K investment) or basement conversion can increase property value by $200-500K. 
+            <p><strong>Immediate ROI:</strong> Adding AC or hot water heating can increase property value by $200-500K. 
             Focus on amenity upgrades over size expansions.</p>
           </div>
         </div>
